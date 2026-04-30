@@ -746,7 +746,8 @@ mark {
   font-weight: 760;
 }
 
-.settings-form input {
+.settings-form input,
+.settings-form select {
   min-height: 42px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -755,16 +756,19 @@ mark {
   color: var(--ink);
 }
 
-.settings-form input:focus {
+.settings-form select {
+  padding-right: 34px;
+}
+
+.settings-form input:focus,
+.settings-form select:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
   outline: none;
 }
 
-.settings-row {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+.settings-form .is-hidden {
+  display: none;
 }
 
 .settings-note {
@@ -1189,10 +1193,6 @@ mark {
   .settings-grid {
     grid-template-columns: 1fr;
     gap: 10px;
-  }
-
-  .settings-row {
-    grid-template-columns: 1fr;
   }
 
   .settings-actions {

@@ -9,6 +9,7 @@ const DEFAULT_AI_SETTINGS = {
   temperature: 0.2,
   maxTokens: 900,
 };
+const AI_MODEL_OPTIONS = ["deepseek-v4-flash", "deepseek-chat", "deepseek-reasoner"];
 
 const state = {
   data: null,
@@ -32,10 +33,9 @@ const els = {
   aiSettingsClear: document.querySelector("#aiSettingsClear"),
   aiProviderInput: document.querySelector("#aiProviderInput"),
   aiBaseUrlInput: document.querySelector("#aiBaseUrlInput"),
-  aiModelInput: document.querySelector("#aiModelInput"),
+  aiModelSelect: document.querySelector("#aiModelSelect"),
+  aiCustomModelInput: document.querySelector("#aiCustomModelInput"),
   aiApiKeyInput: document.querySelector("#aiApiKeyInput"),
-  aiTemperatureInput: document.querySelector("#aiTemperatureInput"),
-  aiMaxTokensInput: document.querySelector("#aiMaxTokensInput"),
   aiKeyStatus: document.querySelector("#aiKeyStatus"),
   aiSettingsStatus: document.querySelector("#aiSettingsStatus"),
   storageStatus: document.querySelector("#storageStatus"),
@@ -115,6 +115,7 @@ function bindEvents() {
     event.preventDefault();
     saveAISettingsFromForm();
   });
+  els.aiModelSelect.addEventListener("change", syncCustomModelInput);
   els.aiSettingsClear.addEventListener("click", () => {
     localStorage.removeItem(AI_STORAGE_KEY);
     state.aiSettings = { ...DEFAULT_AI_SETTINGS };
@@ -479,8 +480,8 @@ async function requestAIExplanation(set, question, settings) {
     },
     body: JSON.stringify({
       model: settings.model,
-      temperature: Number(settings.temperature),
-      max_tokens: Number(settings.maxTokens),
+      temperature: DEFAULT_AI_SETTINGS.temperature,
+      max_tokens: DEFAULT_AI_SETTINGS.maxTokens,
       messages: [
         {
           role: "system",
@@ -738,35 +739,48 @@ function populateAISettingsForm() {
   els.aiSettingsStatus.textContent = "";
   els.aiProviderInput.value = settings.provider || DEFAULT_AI_SETTINGS.provider;
   els.aiBaseUrlInput.value = settings.baseUrl || DEFAULT_AI_SETTINGS.baseUrl;
-  els.aiModelInput.value = settings.model || DEFAULT_AI_SETTINGS.model;
+  setModelControls(settings.model || DEFAULT_AI_SETTINGS.model);
   els.aiApiKeyInput.value = "";
-  els.aiTemperatureInput.value = settings.temperature ?? DEFAULT_AI_SETTINGS.temperature;
-  els.aiMaxTokensInput.value = settings.maxTokens ?? DEFAULT_AI_SETTINGS.maxTokens;
   els.aiKeyStatus.textContent = settings.apiKey ? "已在本浏览器保存密钥" : "未保存密钥";
 }
 
 function saveAISettingsFromForm() {
   const existingKey = state.aiSettings.apiKey || "";
   const enteredKey = els.aiApiKeyInput.value.trim();
+  const selectedModel = getSelectedAIModel();
   state.aiSettings = {
     provider: els.aiProviderInput.value.trim() || DEFAULT_AI_SETTINGS.provider,
     baseUrl: els.aiBaseUrlInput.value.trim() || DEFAULT_AI_SETTINGS.baseUrl,
-    model: els.aiModelInput.value.trim() || DEFAULT_AI_SETTINGS.model,
+    model: selectedModel || DEFAULT_AI_SETTINGS.model,
     apiKey: enteredKey || existingKey,
-    temperature: clampNumber(els.aiTemperatureInput.value, 0, 2, DEFAULT_AI_SETTINGS.temperature),
-    maxTokens: clampNumber(els.aiMaxTokensInput.value, 128, 4096, DEFAULT_AI_SETTINGS.maxTokens),
+    temperature: DEFAULT_AI_SETTINGS.temperature,
+    maxTokens: DEFAULT_AI_SETTINGS.maxTokens,
   };
   saveAISettings();
   els.aiApiKeyInput.value = "";
+  setModelControls(state.aiSettings.model);
   els.aiKeyStatus.textContent = state.aiSettings.apiKey ? "已在本浏览器保存密钥" : "未保存密钥";
   els.aiSettingsStatus.classList.add("is-success");
   els.aiSettingsStatus.textContent = "AI 设置已保存到本地浏览器。";
 }
 
-function clampNumber(value, min, max, fallback) {
-  const number = Number(value);
-  if (!Number.isFinite(number)) return fallback;
-  return Math.min(Math.max(number, min), max);
+function setModelControls(model) {
+  const normalizedModel = model || DEFAULT_AI_SETTINGS.model;
+  const isKnownModel = AI_MODEL_OPTIONS.includes(normalizedModel);
+  els.aiModelSelect.value = isKnownModel ? normalizedModel : "custom";
+  els.aiCustomModelInput.value = isKnownModel ? "" : normalizedModel;
+  syncCustomModelInput();
+}
+
+function syncCustomModelInput() {
+  const isCustom = els.aiModelSelect.value === "custom";
+  els.aiCustomModelInput.classList.toggle("is-hidden", !isCustom);
+  els.aiCustomModelInput.disabled = !isCustom;
+}
+
+function getSelectedAIModel() {
+  if (els.aiModelSelect.value !== "custom") return els.aiModelSelect.value;
+  return els.aiCustomModelInput.value.trim();
 }
 
 function findReferenceSection(question) {
@@ -928,6 +942,8 @@ function loadAISettings() {
     return {
       ...DEFAULT_AI_SETTINGS,
       ...parsed,
+      temperature: DEFAULT_AI_SETTINGS.temperature,
+      maxTokens: DEFAULT_AI_SETTINGS.maxTokens,
     };
   } catch {
     return { ...DEFAULT_AI_SETTINGS };

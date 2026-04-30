@@ -7,7 +7,7 @@
 - 默认服务商：DeepSeek
 - 默认 Base URL：`https://api.deepseek.com`
 - 默认模型：`deepseek-v4-flash`
-- 可在大目录里的 `AI设置` 页面修改服务商、Base URL、模型、API Key、Temperature 和 Max tokens。
+- 可在大目录里的 `AI设置` 页面修改服务商、Base URL、模型和 API Key；生成参数使用适合考试讲解的保守默认值。
 - 所有 AI 设置只保存在当前浏览器的 `localStorage`，不会上传到 Cloudflare 或本项目服务器。
 - 点击刷题页的 `AI 讲解`，浏览器会把当前题目、选项和解析直接发送给你配置的 AI 服务商。
 
