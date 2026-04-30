@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>香港保险考试备考 Web</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="主导航">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">II</div>
+          <div>
+            <p class="brand-title">香港保险备考</p>
+            <p class="brand-subtitle">Paper 1 / Paper 3</p>
+          </div>
+        </div>
+
+        <nav class="nav-list" aria-label="功能">
+          <button class="nav-item is-active" type="button" data-view="dashboard">总览</button>
+          <button class="nav-item" type="button" data-view="practice">刷题</button>
+          <button class="nav-item" type="button" data-view="reader">教材</button>
+          <button class="nav-item" type="button" data-view="review">错题</button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <p class="meta-label">本机进度</p>
+          <p id="storageStatus" class="storage-status">读取中</p>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <h1 id="viewTitle">总览</h1>
+            <p id="viewSubtitle">读取现有题库和教材，直接在浏览器学习。</p>
+          </div>
+          <label class="search-box">
+            <span>搜索</span>
+            <input id="globalSearch" type="search" placeholder="题目、章节、关键词" autocomplete="off" />
+          </label>
+        </header>
+
+        <section id="dashboardView" class="view is-active" aria-labelledby="viewTitle">
+          <div class="stats-grid" id="statsGrid"></div>
+          <div class="dashboard-grid">
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>套题入口</h2>
+                <p>按试卷完整练习，答完立即看解析。</p>
+              </div>
+              <div id="deckList" class="deck-list"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>学习建议</h2>
+                <p>根据本机答题记录自动更新。</p>
+              </div>
+              <div id="recommendationList" class="recommendation-list"></div>
+            </section>
+          </div>
+        </section>
+
+        <section id="practiceView" class="view" aria-labelledby="viewTitle">
+          <div class="practice-layout">
+            <section class="panel practice-panel">
+              <div class="practice-toolbar">
+                <label>
+                  <span>题组</span>
+                  <select id="questionSetSelect"></select>
+                </label>
+                <label>
+                  <span>题号</span>
+                  <select id="questionSelect"></select>
+                </label>
+                <button id="resetSetButton" class="secondary-button" type="button">重做本套</button>
+              </div>
+
+              <article id="questionCard" class="question-card"></article>
+            </section>
+
+            <aside class="panel progress-panel">
+              <div class="panel-heading compact-heading">
+                <div>
+                  <h2>本套进度</h2>
+                  <p id="setProgressText">尚未开始</p>
+                </div>
+                <button id="questionMapToggle" class="collapse-button" type="button" aria-expanded="false" aria-controls="questionMap">展开题号</button>
+              </div>
+              <div id="questionMap" class="question-map" aria-label="题号导航"></div>
+            </aside>
+          </div>
+        </section>
+
+        <section id="readerView" class="view" aria-labelledby="viewTitle">
+          <div class="reader-layout">
+            <aside class="panel reader-index">
+              <div class="reader-index-head">
+                <label>
+                  <span>教材</span>
+                  <select id="materialSelect"></select>
+                </label>
+                <button id="sectionTreeToggle" class="collapse-button" type="button" aria-expanded="false" aria-controls="sectionTree">展开目录</button>
+              </div>
+              <p id="activeSectionLabel" class="active-section-label">请选择章节</p>
+              <div id="sectionTree" class="section-tree"></div>
+            </aside>
+            <article class="panel reader-content">
+              <div id="sectionContent"></div>
+            </article>
+          </div>
+        </section>
+
+        <section id="reviewView" class="view" aria-labelledby="viewTitle">
+          <section class="panel">
+            <div class="panel-heading">
+              <h2>错题复盘</h2>
+              <p>只收录本机答错过的题目，可一键回到原题。</p>
+            </div>
+            <div id="wrongList" class="wrong-list"></div>
+          </section>
+        </section>
+
+        <section id="searchView" class="view" aria-labelledby="viewTitle">
+          <section class="panel">
+            <div class="panel-heading">
+              <h2>搜索结果</h2>
+              <p id="searchSummary">输入关键词后显示相关题目和教材章节。</p>
+            </div>
+            <div id="searchResults" class="search-results"></div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <template id="statTemplate">
+      <article class="stat-card">
+        <span class="stat-label"></span>
+        <strong class="stat-value"></strong>
+        <span class="stat-note"></span>
+      </article>
+    </template>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
