@@ -81,7 +81,7 @@ const els = {
 
 const viewCopy = {
   dashboard: ["总览", "读取现有题库和教材，直接在浏览器学习。"],
-  practice: ["刷题", "按套题练习，答完立即显示答案与解析。"],
+  practice: ["刷题", "普通套题答后看解析，模拟考试提交后统一出分。"],
   reader: ["教材", "按章节阅读 Paper 1 与 Paper 3 教材。"],
   review: ["错题", "集中处理本机答错过的题目。"],
   aiSettings: ["AI设置", "配置 DeepSeek 或兼容模型，设置只保存在当前浏览器。"],
@@ -172,6 +172,7 @@ function bindEvents() {
     set.questions.forEach((question) => {
       delete state.progress.answers[question.id];
     });
+    delete state.progress.submittedExams[set.id];
     saveProgress();
     renderAll();
   });
@@ -366,6 +367,7 @@ function generateMockExam(configId) {
     previousSet.questions.forEach((question) => {
       delete state.progress.answers[question.id];
     });
+    delete state.progress.submittedExams[previousSet.id];
   }
 
   const selectedQuestions = shuffleItems(sourceSet.questions).slice(0, config.count);
@@ -439,7 +441,12 @@ function renderPracticeQuestion() {
   }
 
   const answer = state.progress.answers[question.id];
+  const revealAnswer = shouldRevealAnswer(set);
+  const examMode = isExamMode(set);
+  const submitted = isExamSubmitted(set);
+  const canSubmit = canSubmitExam(set) && !submitted;
   els.questionCard.innerHTML = `
+    ${examMode ? renderExamStatusPanel(set) : ""}
     <div class="question-kicker">
       <span>第 ${question.number} 题</span>
       <span>${escapeHtml(set.title)}</span>
@@ -452,10 +459,10 @@ function renderPracticeQuestion() {
         .map((option) => {
           const classes = ["option-button"];
           if (answer?.selected === option.id) classes.push("is-selected");
-          if (answer && option.id === question.answer) classes.push("is-correct");
-          if (answer?.selected === option.id && option.id !== question.answer) classes.push("is-wrong");
+          if (revealAnswer && answer && option.id === question.answer) classes.push("is-correct");
+          if (revealAnswer && answer?.selected === option.id && option.id !== question.answer) classes.push("is-wrong");
           return `
-            <button class="${classes.join(" ")}" type="button" data-option="${escapeHtml(option.id)}">
+            <button class="${classes.join(" ")}" type="button" data-option="${escapeHtml(option.id)}" ${examMode && submitted ? "disabled" : ""}>
               <span class="option-key">${escapeHtml(option.id)}</span>
               <span>${escapeHtml(option.text)}</span>
             </button>
@@ -464,17 +471,24 @@ function renderPracticeQuestion() {
         .join("")}
     </div>
     ${
-      answer
+      revealAnswer && answer
         ? `<div class="answer-panel">
             <h3>${answer.correct ? "答对了" : `答错了，正确答案是 ${escapeHtml(question.answer)}`}</h3>
             <p>${escapeHtml(question.explanation || "暂无解析。")}</p>
           </div>`
+        : examMode && answer
+          ? '<div class="exam-hold-panel">已记录本题选择。提交整套试卷后，再统一显示正确答案与解析。</div>'
         : ""
     }
     <div class="question-actions">
       <button class="secondary-button" type="button" data-action="prev">上一题</button>
-      <button class="secondary-button" type="button" data-action="reference">看参考章节</button>
-      <button class="secondary-button" type="button" data-action="ai">AI 讲解</button>
+      <button class="secondary-button" type="button" data-action="reference" ${examMode && !submitted ? "disabled" : ""}>看参考章节</button>
+      <button class="secondary-button" type="button" data-action="ai" ${examMode && !submitted ? "disabled" : ""}>AI 讲解</button>
+      ${
+        examMode
+          ? `<button class="primary-button" type="button" data-action="submit-exam" ${canSubmit ? "" : "disabled"}>${submitted ? "已提交" : "提交试卷"}</button>`
+          : ""
+      }
       <button class="primary-button" type="button" data-action="next">下一题</button>
     </div>
     <div class="ai-result-panel" data-ai-result hidden></div>
@@ -485,16 +499,38 @@ function renderPracticeQuestion() {
   });
   els.questionCard.querySelector('[data-action="prev"]').addEventListener("click", () => moveQuestion(-1));
   els.questionCard.querySelector('[data-action="next"]').addEventListener("click", () => moveQuestion(1));
-  els.questionCard.querySelector('[data-action="reference"]').addEventListener("click", () => openReference(question));
-  els.questionCard.querySelector('[data-action="ai"]').addEventListener("click", () => explainQuestionWithAI(set, question));
+  els.questionCard.querySelector('[data-action="reference"]')?.addEventListener("click", () => openReference(question));
+  els.questionCard.querySelector('[data-action="ai"]')?.addEventListener("click", () => explainQuestionWithAI(set, question));
+  els.questionCard.querySelector('[data-action="submit-exam"]')?.addEventListener("click", () => submitExam(set));
 
   const summary = getSetSummary(set);
   els.setProgressText.textContent = summary;
 }
 
+function renderExamStatusPanel(set) {
+  const answered = getAnsweredCount(set);
+  const submitted = isExamSubmitted(set);
+  if (submitted) {
+    const correct = getCorrectCount(set);
+    return `
+      <div class="exam-status-panel is-submitted">
+        <strong>已提交试卷</strong>
+        <span>得分 ${correct}/${set.questions.length}。现在可以查看每题对错、解析、参考章节和 AI 讲解。</span>
+      </div>
+    `;
+  }
+  return `
+    <div class="exam-status-panel">
+      <strong>考试模式</strong>
+      <span>已答 ${answered}/${set.questions.length}。全部题目完成后提交，提交前不显示对错和解析。</span>
+    </div>
+  `;
+}
+
 function renderQuestionMap() {
   const set = getActiveSet();
   if (!set) return;
+  const revealAnswer = shouldRevealAnswer(set);
   els.questionMap.innerHTML = "";
   set.questions.forEach((question, index) => {
     const answer = state.progress.answers[question.id];
@@ -503,8 +539,9 @@ function renderQuestionMap() {
     button.className = "map-button";
     button.textContent = question.number;
     button.classList.toggle("is-current", index === state.activeQuestionIndex);
-    button.classList.toggle("is-correct", answer?.correct === true);
-    button.classList.toggle("is-wrong", answer?.correct === false);
+    button.classList.toggle("is-answered", Boolean(answer) && !revealAnswer);
+    button.classList.toggle("is-correct", revealAnswer && answer?.correct === true);
+    button.classList.toggle("is-wrong", revealAnswer && answer?.correct === false);
     button.addEventListener("click", () => {
       state.activeQuestionIndex = index;
       renderPractice();
@@ -528,6 +565,21 @@ function answerQuestion(question, optionId) {
   renderReview();
 }
 
+function submitExam(set) {
+  if (!isExamMode(set) || isExamSubmitted(set) || !canSubmitExam(set)) return;
+  state.progress.submittedExams[set.id] = {
+    submittedAt: new Date().toISOString(),
+    total: set.questions.length,
+    correct: getCorrectCount(set),
+  };
+  saveProgress();
+  renderStorageStatus();
+  renderPracticeQuestion();
+  renderQuestionMap();
+  renderDashboard();
+  renderReview();
+}
+
 function moveQuestion(delta) {
   const set = getActiveSet();
   const next = Math.min(Math.max(state.activeQuestionIndex + delta, 0), set.questions.length - 1);
@@ -539,6 +591,13 @@ async function explainQuestionWithAI(set, question) {
   const panel = els.questionCard.querySelector("[data-ai-result]");
   const settings = state.aiSettings;
   panel.hidden = false;
+  if (isExamMode(set) && !isExamSubmitted(set)) {
+    panel.innerHTML = `
+      <h3>提交后可用</h3>
+      <p>模拟试题处于考试模式，提交整套试卷后才能查看 AI 讲解。</p>
+    `;
+    return;
+  }
   if (!settings.apiKey) {
     panel.innerHTML = `
       <h3>需要先设置 API Key</h3>
@@ -917,6 +976,22 @@ function isMockExamSet(set) {
   return set?.type === "mockExam";
 }
 
+function isExamMode(set) {
+  return isMockExamSet(set);
+}
+
+function isExamSubmitted(set) {
+  return Boolean(set?.id && state.progress.submittedExams[set.id]);
+}
+
+function shouldRevealAnswer(set) {
+  return !isExamMode(set) || isExamSubmitted(set);
+}
+
+function canSubmitExam(set) {
+  return isExamMode(set) && getAnsweredCount(set) === set.questions.length;
+}
+
 function hydrateStoredMockExams() {
   MOCK_EXAM_CONFIGS.forEach((config) => {
     const selection = state.mockExamSelections[config.id];
@@ -967,13 +1042,29 @@ function getSetSummary(set) {
   const answers = set.questions.map((question) => state.progress.answers[question.id]).filter(Boolean);
   const correct = answers.filter((answer) => answer.correct).length;
   if (!answers.length) return "尚未开始";
+  if (isExamMode(set) && !isExamSubmitted(set)) {
+    return `已答 ${answers.length}/${set.questions.length}，提交后显示成绩`;
+  }
   return `已答 ${answers.length}/${set.questions.length}，正确 ${correct}，错题 ${answers.length - correct}`;
+}
+
+function getAnsweredCount(set) {
+  return set.questions.filter((question) => state.progress.answers[question.id]).length;
+}
+
+function getCorrectCount(set) {
+  return set.questions.filter((question) => state.progress.answers[question.id]?.correct).length;
 }
 
 function getWrongAnswers() {
   return state.allQuestions
     .map((question) => ({ question, answer: state.progress.answers[question.id] }))
-    .filter((item) => item.answer && !item.answer.correct);
+    .filter((item) => item.answer && !item.answer.correct && shouldRevealQuestionAnswer(item.question));
+}
+
+function shouldRevealQuestionAnswer(question) {
+  const set = state.data.questionSets.find((item) => item.id === question.questionSetID);
+  return set ? shouldRevealAnswer(set) : true;
 }
 
 function findFirstUnansweredIndex(set) {
@@ -1092,11 +1183,11 @@ function escapeRegExp(value) {
 function loadProgress() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { answers: {} };
+    if (!raw) return { answers: {}, submittedExams: {} };
     const parsed = JSON.parse(raw);
-    return { answers: parsed.answers || {} };
+    return { answers: parsed.answers || {}, submittedExams: parsed.submittedExams || {} };
   } catch {
-    return { answers: {} };
+    return { answers: {}, submittedExams: {} };
   }
 }
 

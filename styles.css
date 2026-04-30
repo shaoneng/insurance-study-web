@@ -405,6 +405,12 @@ select {
   background: var(--accent-strong);
 }
 
+.primary-button:disabled,
+.secondary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
 .secondary-button {
   border: 1px solid var(--line);
   background: var(--surface);
@@ -518,6 +524,11 @@ select {
   outline: none;
 }
 
+.option-button:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
 .option-button.is-selected {
   border-color: var(--accent);
   background: var(--accent-soft);
@@ -548,6 +559,34 @@ select {
   border-radius: 8px;
   padding: 14px;
   background: #f3faf7;
+}
+
+.exam-status-panel,
+.exam-hold-panel {
+  border: 1px solid #c7e2d9;
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: #f3fbf7;
+  color: var(--accent-strong);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.exam-status-panel {
+  display: grid;
+  gap: 4px;
+}
+
+.exam-status-panel.is-submitted {
+  border-color: #b9dfc7;
+  background: #ecf8f0;
+  color: var(--success);
+}
+
+.exam-hold-panel {
+  border-color: #e4d1aa;
+  background: #fff8eb;
+  color: #624615;
 }
 
 .ai-result-panel {
@@ -598,6 +637,12 @@ select {
   color: var(--ink);
   font-size: 13px;
   font-weight: 760;
+}
+
+.map-button.is-answered {
+  border-color: #9fc9bd;
+  background: #e7f5ef;
+  color: var(--accent-strong);
 }
 
 .map-button.is-current {
