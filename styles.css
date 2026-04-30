@@ -316,26 +316,6 @@ select {
   background: #fbfdfb;
 }
 
-.ai-settings-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-top: 16px;
-}
-
-.ai-settings-card h2 {
-  margin: 0;
-  font-size: 20px;
-}
-
-.ai-settings-card p {
-  margin: 6px 0 0;
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1.5;
-}
-
 .deck-row h3,
 .wrong-row h3,
 .search-row h3 {
@@ -660,28 +640,11 @@ mark {
   color: inherit;
 }
 
-.settings-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  display: grid;
-  place-items: center;
-  padding: 20px;
-  background: rgba(16, 33, 29, 0.5);
-}
-
-.settings-backdrop[hidden] {
-  display: none;
-}
-
 .settings-panel {
   width: min(620px, 100%);
-  max-height: min(760px, calc(100vh - 40px));
-  overflow: auto;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
-  box-shadow: 0 30px 80px rgba(16, 33, 29, 0.24);
 }
 
 .settings-head {
@@ -871,9 +834,9 @@ mark {
   }
 
   .nav-list {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     width: 100%;
-    gap: 5px;
+    gap: 4px;
   }
 
   .nav-item {
@@ -883,7 +846,7 @@ mark {
     border-radius: 8px;
     overflow: hidden;
     text-align: center;
-    font-size: 13px;
+    font-size: 12px;
   }
 
   .nav-item.is-active {
@@ -931,8 +894,7 @@ mark {
 
   .deck-row,
   .wrong-row,
-  .search-row,
-  .ai-settings-card {
+  .search-row {
     align-items: stretch;
     flex-direction: column;
     gap: 10px;
@@ -942,8 +904,7 @@ mark {
   .deck-row .primary-button,
   .wrong-row .primary-button,
   .search-row .primary-button,
-  .search-row .secondary-button,
-  .ai-settings-card .primary-button {
+  .search-row .secondary-button {
     width: 100%;
   }
 
@@ -1100,14 +1061,8 @@ mark {
     padding: 18px;
   }
 
-  .settings-backdrop {
-    align-items: end;
-    padding: 12px;
-    padding-bottom: calc(84px + env(safe-area-inset-bottom));
-  }
-
   .settings-panel {
-    max-height: calc(100vh - 116px - env(safe-area-inset-bottom));
+    width: 100%;
   }
 
   .settings-head {

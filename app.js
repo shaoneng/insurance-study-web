@@ -28,10 +28,7 @@ const state = {
 const els = {
   viewTitle: document.querySelector("#viewTitle"),
   viewSubtitle: document.querySelector("#viewSubtitle"),
-  aiSettingsButton: document.querySelector("#aiSettingsButton"),
-  aiSettingsBackdrop: document.querySelector("#aiSettingsBackdrop"),
   aiSettingsForm: document.querySelector("#aiSettingsForm"),
-  aiSettingsClose: document.querySelector("#aiSettingsClose"),
   aiSettingsClear: document.querySelector("#aiSettingsClear"),
   aiProviderInput: document.querySelector("#aiProviderInput"),
   aiBaseUrlInput: document.querySelector("#aiBaseUrlInput"),
@@ -68,6 +65,7 @@ const viewCopy = {
   practice: ["刷题", "按套题练习，答完立即显示答案与解析。"],
   reader: ["教材", "按章节阅读 Paper 1 与 Paper 3 教材。"],
   review: ["错题", "集中处理本机答错过的题目。"],
+  aiSettings: ["AI设置", "配置 DeepSeek 或兼容模型，设置只保存在当前浏览器。"],
   search: ["搜索", "在题库和教材章节里快速定位。"],
 };
 
@@ -112,13 +110,6 @@ function bindEvents() {
     });
   });
 
-  els.aiSettingsButton.addEventListener("click", () => openAISettings());
-  els.aiSettingsClose.addEventListener("click", () => closeAISettings());
-  els.aiSettingsBackdrop.addEventListener("click", (event) => {
-    if (event.target === els.aiSettingsBackdrop) {
-      closeAISettings();
-    }
-  });
   els.aiSettingsForm.addEventListener("submit", (event) => {
     event.preventDefault();
     saveAISettingsFromForm();
@@ -128,11 +119,6 @@ function bindEvents() {
     state.aiSettings = { ...DEFAULT_AI_SETTINGS };
     populateAISettingsForm();
     els.aiSettingsStatus.textContent = "已清除本地 AI 设置。";
-  });
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && !els.aiSettingsBackdrop.hidden) {
-      closeAISettings();
-    }
   });
 
   els.globalSearch.addEventListener("input", (event) => {
@@ -229,6 +215,9 @@ function setView(view) {
   document.querySelectorAll(".view").forEach((section) => {
     section.classList.toggle("is-active", section.id === `${view}View`);
   });
+  if (view === "aiSettings") {
+    populateAISettingsForm();
+  }
   renderNav();
 }
 
@@ -446,9 +435,9 @@ async function explainQuestionWithAI(set, question) {
   if (!settings.apiKey) {
     panel.innerHTML = `
       <h3>需要先设置 API Key</h3>
-      <p>进入“错题”页，点击“打开 AI 设置”，填写 DeepSeek 或兼容服务商的 API Key。密钥只保存在当前浏览器。</p>
+      <p>进入大目录里的“AI设置”页面，填写 DeepSeek 或兼容服务商的 API Key。密钥只保存在当前浏览器。</p>
     `;
-    openAISettings();
+    setView("aiSettings");
     return;
   }
 
@@ -725,18 +714,6 @@ function updateQuestionMapToggle() {
 function updateSectionTreeToggle() {
   const collapsed = els.sectionTree.classList.contains("is-collapsed");
   els.sectionTreeToggle.textContent = collapsed ? "展开目录" : "收起目录";
-}
-
-function openAISettings() {
-  populateAISettingsForm();
-  els.aiSettingsBackdrop.hidden = false;
-  requestAnimationFrame(() => els.aiProviderInput.focus());
-}
-
-function closeAISettings() {
-  els.aiSettingsBackdrop.hidden = true;
-  els.aiSettingsStatus.textContent = "";
-  els.aiApiKeyInput.value = "";
 }
 
 function populateAISettingsForm() {
