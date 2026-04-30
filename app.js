@@ -1,6 +1,23 @@
 const DATA_URLS = ["./data/study-data.json", "/Sources/InsuranceStudyApp/Resources/study-data.json"];
 const STORAGE_KEY = "insurance-study-web-progress-v1";
 const AI_STORAGE_KEY = "insurance-study-web-ai-settings-v1";
+const MOCK_EXAM_STORAGE_KEY = "insurance-study-web-mock-exams-v1";
+const MOCK_EXAM_CONFIGS = [
+  {
+    id: "mock-exam-paper1",
+    title: "试卷一：模拟考试",
+    subtitle: "75 题 · 保險原理及實務",
+    sourceSetId: "set-paper1-mock-2026-02",
+    count: 75,
+  },
+  {
+    id: "mock-exam-paper3",
+    title: "试卷三：模拟考试",
+    subtitle: "50 题 · 長期保險",
+    sourceSetId: "set-paper3-mock-2026-02",
+    count: 50,
+  },
+];
 const DEFAULT_AI_SETTINGS = {
   provider: "DeepSeek",
   baseUrl: "https://api.deepseek.com",
@@ -22,6 +39,7 @@ const state = {
   searchTerm: "",
   progress: loadProgress(),
   aiSettings: loadAISettings(),
+  mockExamSelections: loadMockExamSelections(),
   flatSections: [],
   allQuestions: [],
 };
@@ -41,6 +59,7 @@ const els = {
   storageStatus: document.querySelector("#storageStatus"),
   globalSearch: document.querySelector("#globalSearch"),
   statsGrid: document.querySelector("#statsGrid"),
+  mockExamList: document.querySelector("#mockExamList"),
   deckList: document.querySelector("#deckList"),
   recommendationList: document.querySelector("#recommendationList"),
   questionSetSelect: document.querySelector("#questionSetSelect"),
@@ -189,6 +208,11 @@ function prepareData() {
   state.flatSections = state.data.materials.flatMap((material) =>
     flattenSections(material.sections || [], material, 0),
   );
+  hydrateStoredMockExams();
+  refreshQuestionIndex();
+}
+
+function refreshQuestionIndex() {
   state.allQuestions = state.data.questionSets.flatMap((set) =>
     set.questions.map((question) => ({
       ...question,
@@ -199,7 +223,7 @@ function prepareData() {
 }
 
 function hydrateDefaults() {
-  state.activeSetId = state.data.questionSets[0]?.id ?? null;
+  state.activeSetId = getSourceQuestionSets()[0]?.id ?? state.data.questionSets[0]?.id ?? null;
   state.activeMaterialId = state.data.materials.find((material) => material.type === "textbook")?.id ?? null;
   state.activeSectionId = getSectionsForMaterial(state.activeMaterialId)[0]?.id ?? null;
 }
@@ -252,13 +276,15 @@ function renderStorageStatus() {
 
 function renderDashboard() {
   const textbooks = state.data.materials.filter((material) => material.type === "textbook").length;
-  const exams = state.data.questionSets.length;
+  const sourceSets = getSourceQuestionSets();
+  const exams = sourceSets.length + MOCK_EXAM_CONFIGS.length;
   const answered = Object.keys(state.progress.answers).length;
   const wrong = getWrongAnswers().length;
+  const questionTotal = sourceSets.reduce((total, set) => total + set.questions.length, 0);
   const stats = [
     ["教材", textbooks, "Paper 1 与 Paper 3"],
     ["套题", exams, "含精选题与模拟题"],
-    ["题目", state.allQuestions.length, "可按套题完整练习"],
+    ["题目", questionTotal, "可按套题完整练习"],
     ["错题", wrong, answered ? `已作答 ${answered} 题` : "开始刷题后自动记录"],
   ];
   els.statsGrid.innerHTML = "";
@@ -270,8 +296,9 @@ function renderDashboard() {
     els.statsGrid.append(node);
   });
 
+  renderMockExamList();
   els.deckList.innerHTML = "";
-  state.data.questionSets.forEach((set) => {
+  sourceSets.forEach((set) => {
     const summary = getSetSummary(set);
     const row = document.createElement("article");
     row.className = "deck-row";
@@ -283,15 +310,78 @@ function renderDashboard() {
       <button class="primary-button" type="button">开始</button>
     `;
     row.querySelector("button").addEventListener("click", () => {
-      state.activeSetId = set.id;
-      state.activeQuestionIndex = findFirstUnansweredIndex(set);
-      setView("practice");
-      renderPractice();
+      openQuestionSet(set.id);
     });
     els.deckList.append(row);
   });
 
   renderRecommendations();
+}
+
+function openQuestionSet(setId) {
+  const set = state.data.questionSets.find((item) => item.id === setId);
+  if (!set) return;
+  state.activeSetId = set.id;
+  state.activeQuestionIndex = findFirstUnansweredIndex(set);
+  setView("practice");
+  renderPractice();
+}
+
+function renderMockExamList() {
+  els.mockExamList.innerHTML = "";
+  MOCK_EXAM_CONFIGS.forEach((config) => {
+    const set = getMockExamSet(config.id);
+    const summary = set ? getSetSummary(set) : `点击生成 ${config.count} 道考试规格模拟题`;
+    const card = document.createElement("article");
+    card.className = "mock-exam-card";
+    card.innerHTML = `
+      <div>
+        <span class="mock-exam-label">模拟试题</span>
+        <h3>${escapeHtml(config.title)}</h3>
+        <p>${escapeHtml(config.subtitle)} · ${escapeHtml(summary)}</p>
+      </div>
+      <div class="mock-exam-actions">
+        ${
+          set
+            ? '<button class="secondary-button" type="button" data-action="continue">继续</button>'
+            : ""
+        }
+        <button class="primary-button" type="button" data-action="generate">${set ? "重新生成" : "生成试卷"}</button>
+      </div>
+    `;
+    card.querySelector('[data-action="generate"]').addEventListener("click", () => generateMockExam(config.id));
+    card.querySelector('[data-action="continue"]')?.addEventListener("click", () => openQuestionSet(config.id));
+    els.mockExamList.append(card);
+  });
+}
+
+function generateMockExam(configId) {
+  const config = MOCK_EXAM_CONFIGS.find((item) => item.id === configId);
+  if (!config) return;
+  const sourceSet = state.data.questionSets.find((set) => set.id === config.sourceSetId);
+  if (!sourceSet) return;
+
+  const previousSet = getMockExamSet(config.id);
+  if (previousSet) {
+    previousSet.questions.forEach((question) => {
+      delete state.progress.answers[question.id];
+    });
+  }
+
+  const selectedQuestions = shuffleItems(sourceSet.questions).slice(0, config.count);
+  state.mockExamSelections[config.id] = {
+    sourceSetId: sourceSet.id,
+    questionIds: selectedQuestions.map((question) => question.id),
+    createdAt: new Date().toISOString(),
+  };
+  saveMockExamSelections();
+  saveProgress();
+  upsertMockExamSet(buildMockExamSet(config, selectedQuestions));
+  refreshQuestionIndex();
+  renderStorageStatus();
+  renderDashboard();
+  renderReview();
+  openQuestionSet(config.id);
 }
 
 function renderRecommendations() {
@@ -815,6 +905,60 @@ function getActiveSet() {
   return state.data?.questionSets.find((set) => set.id === state.activeSetId);
 }
 
+function getSourceQuestionSets() {
+  return state.data.questionSets.filter((set) => !isMockExamSet(set));
+}
+
+function getMockExamSet(configId) {
+  return state.data.questionSets.find((set) => set.id === configId && isMockExamSet(set));
+}
+
+function isMockExamSet(set) {
+  return set?.type === "mockExam";
+}
+
+function hydrateStoredMockExams() {
+  MOCK_EXAM_CONFIGS.forEach((config) => {
+    const selection = state.mockExamSelections[config.id];
+    if (!selection?.questionIds?.length) return;
+    const sourceSet = state.data.questionSets.find((set) => set.id === config.sourceSetId);
+    if (!sourceSet) return;
+    const byId = new Map(sourceSet.questions.map((question) => [question.id, question]));
+    const questions = selection.questionIds.map((id) => byId.get(id)).filter(Boolean).slice(0, config.count);
+    if (questions.length) {
+      upsertMockExamSet(buildMockExamSet(config, questions, selection.createdAt));
+    }
+  });
+}
+
+function upsertMockExamSet(set) {
+  const index = state.data.questionSets.findIndex((item) => item.id === set.id);
+  if (index === -1) {
+    state.data.questionSets.unshift(set);
+    return;
+  }
+  state.data.questionSets[index] = set;
+}
+
+function buildMockExamSet(config, sourceQuestions, createdAt = new Date().toISOString()) {
+  const sourceSet = state.data.questionSets.find((set) => set.id === config.sourceSetId);
+  return {
+    id: config.id,
+    title: config.title,
+    subtitle: `${config.subtitle} · ${formatDateTime(createdAt)}`,
+    materialID: sourceSet?.materialID,
+    type: "mockExam",
+    sourceSetId: config.sourceSetId,
+    questions: sourceQuestions.map((question, index) => ({
+      ...question,
+      id: `${config.id}-q${String(index + 1).padStart(3, "0")}-${question.id}`,
+      number: index + 1,
+      questionSetID: config.id,
+      sourceQuestionID: question.id,
+    })),
+  };
+}
+
 function getSectionsForMaterial(materialId) {
   return state.flatSections.filter((section) => section.material.id === materialId);
 }
@@ -853,6 +997,26 @@ function countBy(values) {
     result[value] = (result[value] || 0) + 1;
     return result;
   }, {});
+}
+
+function shuffleItems(items) {
+  const shuffled = [...items];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+  }
+  return shuffled;
+}
+
+function formatDateTime(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "最近生成";
+  return date.toLocaleString("zh-CN", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function markdownToHtml(markdown) {
@@ -938,6 +1102,21 @@ function loadProgress() {
 
 function saveProgress() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state.progress));
+}
+
+function loadMockExamSelections() {
+  try {
+    const raw = localStorage.getItem(MOCK_EXAM_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveMockExamSelections() {
+  localStorage.setItem(MOCK_EXAM_STORAGE_KEY, JSON.stringify(state.mockExamSelections));
 }
 
 function loadAISettings() {
