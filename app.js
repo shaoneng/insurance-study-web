@@ -1,5 +1,14 @@
 const DATA_URLS = ["./data/study-data.json", "/Sources/InsuranceStudyApp/Resources/study-data.json"];
 const STORAGE_KEY = "insurance-study-web-progress-v1";
+const AI_STORAGE_KEY = "insurance-study-web-ai-settings-v1";
+const DEFAULT_AI_SETTINGS = {
+  provider: "DeepSeek",
+  baseUrl: "https://api.deepseek.com",
+  model: "deepseek-v4-flash",
+  apiKey: "",
+  temperature: 0.2,
+  maxTokens: 900,
+};
 
 const state = {
   data: null,
@@ -11,6 +20,7 @@ const state = {
   activeSectionId: null,
   searchTerm: "",
   progress: loadProgress(),
+  aiSettings: loadAISettings(),
   flatSections: [],
   allQuestions: [],
 };
@@ -18,6 +28,19 @@ const state = {
 const els = {
   viewTitle: document.querySelector("#viewTitle"),
   viewSubtitle: document.querySelector("#viewSubtitle"),
+  aiSettingsButton: document.querySelector("#aiSettingsButton"),
+  aiSettingsBackdrop: document.querySelector("#aiSettingsBackdrop"),
+  aiSettingsForm: document.querySelector("#aiSettingsForm"),
+  aiSettingsClose: document.querySelector("#aiSettingsClose"),
+  aiSettingsClear: document.querySelector("#aiSettingsClear"),
+  aiProviderInput: document.querySelector("#aiProviderInput"),
+  aiBaseUrlInput: document.querySelector("#aiBaseUrlInput"),
+  aiModelInput: document.querySelector("#aiModelInput"),
+  aiApiKeyInput: document.querySelector("#aiApiKeyInput"),
+  aiTemperatureInput: document.querySelector("#aiTemperatureInput"),
+  aiMaxTokensInput: document.querySelector("#aiMaxTokensInput"),
+  aiKeyStatus: document.querySelector("#aiKeyStatus"),
+  aiSettingsStatus: document.querySelector("#aiSettingsStatus"),
   storageStatus: document.querySelector("#storageStatus"),
   globalSearch: document.querySelector("#globalSearch"),
   statsGrid: document.querySelector("#statsGrid"),
@@ -87,6 +110,29 @@ function bindEvents() {
       state.searchTerm = "";
       setView(button.dataset.view);
     });
+  });
+
+  els.aiSettingsButton.addEventListener("click", () => openAISettings());
+  els.aiSettingsClose.addEventListener("click", () => closeAISettings());
+  els.aiSettingsBackdrop.addEventListener("click", (event) => {
+    if (event.target === els.aiSettingsBackdrop) {
+      closeAISettings();
+    }
+  });
+  els.aiSettingsForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    saveAISettingsFromForm();
+  });
+  els.aiSettingsClear.addEventListener("click", () => {
+    localStorage.removeItem(AI_STORAGE_KEY);
+    state.aiSettings = { ...DEFAULT_AI_SETTINGS };
+    populateAISettingsForm();
+    els.aiSettingsStatus.textContent = "已清除本地 AI 设置。";
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !els.aiSettingsBackdrop.hidden) {
+      closeAISettings();
+    }
   });
 
   els.globalSearch.addEventListener("input", (event) => {
@@ -332,8 +378,10 @@ function renderPracticeQuestion() {
     <div class="question-actions">
       <button class="secondary-button" type="button" data-action="prev">上一题</button>
       <button class="secondary-button" type="button" data-action="reference">看参考章节</button>
+      <button class="secondary-button" type="button" data-action="ai">AI 讲解</button>
       <button class="primary-button" type="button" data-action="next">下一题</button>
     </div>
+    <div class="ai-result-panel" data-ai-result hidden></div>
   `;
 
   els.questionCard.querySelectorAll("[data-option]").forEach((button) => {
@@ -342,6 +390,7 @@ function renderPracticeQuestion() {
   els.questionCard.querySelector('[data-action="prev"]').addEventListener("click", () => moveQuestion(-1));
   els.questionCard.querySelector('[data-action="next"]').addEventListener("click", () => moveQuestion(1));
   els.questionCard.querySelector('[data-action="reference"]').addEventListener("click", () => openReference(question));
+  els.questionCard.querySelector('[data-action="ai"]').addEventListener("click", () => explainQuestionWithAI(set, question));
 
   const summary = getSetSummary(set);
   els.setProgressText.textContent = summary;
@@ -388,6 +437,95 @@ function moveQuestion(delta) {
   const next = Math.min(Math.max(state.activeQuestionIndex + delta, 0), set.questions.length - 1);
   state.activeQuestionIndex = next;
   renderPractice();
+}
+
+async function explainQuestionWithAI(set, question) {
+  const panel = els.questionCard.querySelector("[data-ai-result]");
+  const settings = state.aiSettings;
+  panel.hidden = false;
+  if (!settings.apiKey) {
+    panel.innerHTML = `
+      <h3>需要先设置 API Key</h3>
+      <p>点击右上角“AI 设置”，填写 DeepSeek 或兼容服务商的 API Key。密钥只保存在当前浏览器。</p>
+    `;
+    openAISettings();
+    return;
+  }
+
+  panel.innerHTML = `<h3>AI 正在生成讲解</h3><p>正在请求 ${escapeHtml(settings.provider || "AI")}，请稍等。</p>`;
+  try {
+    const content = await requestAIExplanation(set, question, settings);
+    panel.innerHTML = `<h3>AI 讲解</h3>${markdownToHtml(content)}`;
+  } catch (error) {
+    panel.innerHTML = `
+      <h3>AI 请求失败</h3>
+      <p>${escapeHtml(error.message)}</p>
+      <p>如果浏览器提示 CORS，可在 AI 设置里换成支持浏览器调用的兼容端点。</p>
+    `;
+  }
+}
+
+async function requestAIExplanation(set, question, settings) {
+  const response = await fetch(resolveChatCompletionsUrl(settings.baseUrl), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${settings.apiKey}`,
+    },
+    body: JSON.stringify({
+      model: settings.model,
+      temperature: Number(settings.temperature),
+      max_tokens: Number(settings.maxTokens),
+      messages: [
+        {
+          role: "system",
+          content:
+            "你是香港保险中介人考试备考教练。请用简体中文解释题目，先指出考点，再解释为什么正确选项正确、为什么干扰项容易错，最后给一个记忆点。不要编造题目之外的法规细节。",
+        },
+        {
+          role: "user",
+          content: buildQuestionPrompt(set, question),
+        },
+      ],
+    }),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = payload?.error?.message || payload?.message || `HTTP ${response.status}`;
+    throw new Error(message);
+  }
+  const content = payload?.choices?.[0]?.message?.content;
+  if (!content) {
+    throw new Error("AI 返回结果里没有可显示的讲解内容。");
+  }
+  return content;
+}
+
+function buildQuestionPrompt(set, question) {
+  const options = question.options.map((option) => `${option.id}. ${option.text}`).join("\n");
+  return [
+    `题组：${set.title} ${set.subtitle}`,
+    `题号：${question.number}`,
+    question.reference ? `参考章节：${question.reference}` : "",
+    `题目：${question.prompt}`,
+    `选项：\n${options}`,
+    `正确答案：${question.answer}`,
+    question.explanation ? `原解析：${question.explanation}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+function resolveChatCompletionsUrl(baseUrl) {
+  const trimmed = String(baseUrl || "").trim().replace(/\/+$/, "");
+  if (/\/chat\/completions$/i.test(trimmed)) {
+    return trimmed;
+  }
+  if (/\/v1$/i.test(trimmed)) {
+    return `${trimmed}/chat/completions`;
+  }
+  return `${trimmed}/chat/completions`;
 }
 
 function renderReader() {
@@ -589,6 +727,52 @@ function updateSectionTreeToggle() {
   els.sectionTreeToggle.textContent = collapsed ? "展开目录" : "收起目录";
 }
 
+function openAISettings() {
+  populateAISettingsForm();
+  els.aiSettingsBackdrop.hidden = false;
+  requestAnimationFrame(() => els.aiProviderInput.focus());
+}
+
+function closeAISettings() {
+  els.aiSettingsBackdrop.hidden = true;
+  els.aiSettingsStatus.textContent = "";
+  els.aiApiKeyInput.value = "";
+}
+
+function populateAISettingsForm() {
+  const settings = state.aiSettings;
+  els.aiProviderInput.value = settings.provider || DEFAULT_AI_SETTINGS.provider;
+  els.aiBaseUrlInput.value = settings.baseUrl || DEFAULT_AI_SETTINGS.baseUrl;
+  els.aiModelInput.value = settings.model || DEFAULT_AI_SETTINGS.model;
+  els.aiApiKeyInput.value = "";
+  els.aiTemperatureInput.value = settings.temperature ?? DEFAULT_AI_SETTINGS.temperature;
+  els.aiMaxTokensInput.value = settings.maxTokens ?? DEFAULT_AI_SETTINGS.maxTokens;
+  els.aiKeyStatus.textContent = settings.apiKey ? "已在本浏览器保存密钥" : "未保存密钥";
+}
+
+function saveAISettingsFromForm() {
+  const existingKey = state.aiSettings.apiKey || "";
+  const enteredKey = els.aiApiKeyInput.value.trim();
+  state.aiSettings = {
+    provider: els.aiProviderInput.value.trim() || DEFAULT_AI_SETTINGS.provider,
+    baseUrl: els.aiBaseUrlInput.value.trim() || DEFAULT_AI_SETTINGS.baseUrl,
+    model: els.aiModelInput.value.trim() || DEFAULT_AI_SETTINGS.model,
+    apiKey: enteredKey || existingKey,
+    temperature: clampNumber(els.aiTemperatureInput.value, 0, 2, DEFAULT_AI_SETTINGS.temperature),
+    maxTokens: clampNumber(els.aiMaxTokensInput.value, 128, 4096, DEFAULT_AI_SETTINGS.maxTokens),
+  };
+  saveAISettings();
+  els.aiApiKeyInput.value = "";
+  els.aiKeyStatus.textContent = state.aiSettings.apiKey ? "已在本浏览器保存密钥" : "未保存密钥";
+  els.aiSettingsStatus.textContent = "AI 设置已保存到本地浏览器。";
+}
+
+function clampNumber(value, min, max, fallback) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.min(Math.max(number, min), max);
+}
+
 function findReferenceSection(question) {
   const candidates = state.flatSections.filter((item) => item.material.id === question.materialID);
   const reference = normalizeReference(question.reference);
@@ -738,6 +922,24 @@ function loadProgress() {
 
 function saveProgress() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state.progress));
+}
+
+function loadAISettings() {
+  try {
+    const raw = localStorage.getItem(AI_STORAGE_KEY);
+    if (!raw) return { ...DEFAULT_AI_SETTINGS };
+    const parsed = JSON.parse(raw);
+    return {
+      ...DEFAULT_AI_SETTINGS,
+      ...parsed,
+    };
+  } catch {
+    return { ...DEFAULT_AI_SETTINGS };
+  }
+}
+
+function saveAISettings() {
+  localStorage.setItem(AI_STORAGE_KEY, JSON.stringify(state.aiSettings));
 }
 
 function renderLoadError(error) {
