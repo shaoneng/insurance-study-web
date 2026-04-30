@@ -9,7 +9,7 @@ const DEFAULT_AI_SETTINGS = {
   temperature: 0.2,
   maxTokens: 900,
 };
-const AI_MODEL_OPTIONS = ["deepseek-v4-flash", "deepseek-chat", "deepseek-reasoner"];
+const AI_MODEL_OPTIONS = ["deepseek-v4-flash", "deepseek-pro"];
 
 const state = {
   data: null,
