@@ -9,7 +9,7 @@ const DEFAULT_AI_SETTINGS = {
   temperature: 0.2,
   maxTokens: 900,
 };
-const AI_MODEL_OPTIONS = ["deepseek-v4-flash", "deepseek-pro"];
+const AI_MODEL_OPTIONS = ["deepseek-v4-flash", "deepseek-v4-pro"];
 
 const state = {
   data: null,
@@ -472,28 +472,34 @@ async function explainQuestionWithAI(set, question) {
 }
 
 async function requestAIExplanation(set, question, settings) {
+  const requestBody = {
+    model: settings.model,
+    temperature: DEFAULT_AI_SETTINGS.temperature,
+    max_tokens: DEFAULT_AI_SETTINGS.maxTokens,
+    messages: [
+      {
+        role: "system",
+        content:
+          "你是香港保险中介人考试备考教练。请用简体中文解释题目，先指出考点，再解释为什么正确选项正确、为什么干扰项容易错，最后给一个记忆点。不要编造题目之外的法规细节。",
+      },
+      {
+        role: "user",
+        content: buildQuestionPrompt(set, question),
+      },
+    ],
+  };
+  if (settings.model === "deepseek-v4-pro") {
+    requestBody.thinking = { type: "enabled" };
+    requestBody.reasoning_effort = "high";
+  }
+
   const response = await fetch(resolveChatCompletionsUrl(settings.baseUrl), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${settings.apiKey}`,
     },
-    body: JSON.stringify({
-      model: settings.model,
-      temperature: DEFAULT_AI_SETTINGS.temperature,
-      max_tokens: DEFAULT_AI_SETTINGS.maxTokens,
-      messages: [
-        {
-          role: "system",
-          content:
-            "你是香港保险中介人考试备考教练。请用简体中文解释题目，先指出考点，再解释为什么正确选项正确、为什么干扰项容易错，最后给一个记忆点。不要编造题目之外的法规细节。",
-        },
-        {
-          role: "user",
-          content: buildQuestionPrompt(set, question),
-        },
-      ],
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   const payload = await response.json().catch(() => ({}));
@@ -939,9 +945,11 @@ function loadAISettings() {
     const raw = localStorage.getItem(AI_STORAGE_KEY);
     if (!raw) return { ...DEFAULT_AI_SETTINGS };
     const parsed = JSON.parse(raw);
+    const model = parsed.model === "deepseek-pro" ? "deepseek-v4-pro" : parsed.model;
     return {
       ...DEFAULT_AI_SETTINGS,
       ...parsed,
+      model,
       temperature: DEFAULT_AI_SETTINGS.temperature,
       maxTokens: DEFAULT_AI_SETTINGS.maxTokens,
     };
