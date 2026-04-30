@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>香港保险考试备考 Web</title>
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css?v=20260430-2" />
   </head>
   <body>
     <div class="app-shell">
@@ -128,42 +128,60 @@
             <div class="settings-head">
               <div>
                 <h2 id="aiSettingsTitle">AI 设置</h2>
-                <p>配置只保存在当前浏览器，不会上传到 Cloudflare 或应用服务器。</p>
+                <p>配置 DeepSeek 或兼容模型，用来生成题目讲解。所有设置只保存在当前浏览器。</p>
               </div>
+              <div class="settings-privacy">本地保存</div>
             </div>
 
             <form id="aiSettingsForm" class="settings-form" autocomplete="off">
-              <label>
-                <span>服务名称</span>
-                <input id="aiProviderInput" type="text" placeholder="DeepSeek" />
-              </label>
-              <label>
-                <span>Base URL</span>
-                <input id="aiBaseUrlInput" type="url" placeholder="https://api.deepseek.com" />
-              </label>
-              <label>
-                <span>模型</span>
-                <input id="aiModelInput" type="text" placeholder="deepseek-v4-flash" />
-              </label>
-              <label>
-                <span>API Key</span>
-                <input id="aiApiKeyInput" type="password" placeholder="留空保持已保存密钥" autocomplete="new-password" />
-                <small id="aiKeyStatus">未保存密钥</small>
-              </label>
-              <div class="settings-row">
-                <label>
-                  <span>Temperature</span>
-                  <input id="aiTemperatureInput" type="number" min="0" max="2" step="0.1" />
-                </label>
-                <label>
-                  <span>Max tokens</span>
-                  <input id="aiMaxTokensInput" type="number" min="128" max="4096" step="64" />
-                </label>
+              <div class="settings-section">
+                <div class="settings-section-title">
+                  <h3>连接配置</h3>
+                  <p>API Key 不会显示明文；留空会保留已保存的密钥。</p>
+                </div>
+                <div class="settings-grid">
+                  <label class="field">
+                    <span>服务名称</span>
+                    <input id="aiProviderInput" type="text" placeholder="DeepSeek" />
+                  </label>
+                  <label class="field">
+                    <span>Base URL</span>
+                    <input id="aiBaseUrlInput" type="url" placeholder="https://api.deepseek.com" />
+                  </label>
+                  <label class="field">
+                    <span>模型</span>
+                    <input id="aiModelInput" type="text" placeholder="deepseek-v4-flash" />
+                  </label>
+                  <label class="field">
+                    <span>API Key</span>
+                    <input id="aiApiKeyInput" type="password" placeholder="留空保持已保存密钥" autocomplete="new-password" />
+                    <small id="aiKeyStatus">未保存密钥</small>
+                  </label>
+                </div>
               </div>
-              <p class="settings-note">
-                生成讲解时，浏览器会把当前题目、选项和解析直接发送给你配置的 AI 服务商。
-              </p>
-              <p id="aiSettingsStatus" class="settings-status" role="status"></p>
+
+              <div class="settings-section">
+                <div class="settings-section-title">
+                  <h3>生成参数</h3>
+                  <p>保守一点更适合考试讲解，默认温度为 0.2。</p>
+                </div>
+                <div class="settings-row">
+                  <label class="field">
+                    <span>Temperature</span>
+                    <input id="aiTemperatureInput" type="number" min="0" max="2" step="0.1" />
+                  </label>
+                  <label class="field">
+                    <span>Max tokens</span>
+                    <input id="aiMaxTokensInput" type="number" min="128" max="4096" step="64" />
+                  </label>
+                </div>
+              </div>
+
+              <div class="settings-note">
+                <strong>隐私说明</strong>
+                <span>生成讲解时，浏览器会把当前题目、选项和解析直接发送给你配置的 AI 服务商；本应用不会保存这些请求。</span>
+              </div>
+              <p id="aiSettingsStatus" class="settings-status" role="status" aria-live="polite"></p>
               <div class="settings-actions">
                 <button id="aiSettingsClear" class="secondary-button" type="button">清除本地设置</button>
                 <button class="primary-button" type="submit">保存到本地</button>
@@ -192,6 +210,6 @@
       </article>
     </template>
 
-    <script type="module" src="./app.js"></script>
+    <script type="module" src="./app.js?v=20260430-2"></script>
   </body>
 </html>

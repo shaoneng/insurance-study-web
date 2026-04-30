@@ -79,6 +79,7 @@ async function init() {
     state.data = await fetchStudyData();
     prepareData();
     hydrateDefaults();
+    state.activeView = getViewFromHash() || state.activeView;
     renderAll();
   } catch (error) {
     renderLoadError(error);
@@ -106,7 +107,7 @@ function bindEvents() {
     button.addEventListener("click", () => {
       els.globalSearch.value = "";
       state.searchTerm = "";
-      setView(button.dataset.view);
+      setView(button.dataset.view, { updateHash: true });
     });
   });
 
@@ -118,6 +119,7 @@ function bindEvents() {
     localStorage.removeItem(AI_STORAGE_KEY);
     state.aiSettings = { ...DEFAULT_AI_SETTINGS };
     populateAISettingsForm();
+    els.aiSettingsStatus.classList.remove("is-success");
     els.aiSettingsStatus.textContent = "已清除本地 AI 设置。";
   });
 
@@ -174,6 +176,12 @@ function bindEvents() {
   } else {
     mobileQuery.addListener(() => applyResponsiveDefaults());
   }
+  window.addEventListener("hashchange", () => {
+    const view = getViewFromHash();
+    if (view) {
+      setView(view);
+    }
+  });
 }
 
 function prepareData() {
@@ -207,7 +215,7 @@ function renderAll() {
   setView(state.activeView);
 }
 
-function setView(view) {
+function setView(view, options = {}) {
   state.activeView = view;
   const [title, subtitle] = viewCopy[view] ?? viewCopy.dashboard;
   els.viewTitle.textContent = title;
@@ -218,7 +226,15 @@ function setView(view) {
   if (view === "aiSettings") {
     populateAISettingsForm();
   }
+  if (options.updateHash && view !== "search") {
+    history.replaceState(null, "", `#${view}`);
+  }
   renderNav();
+}
+
+function getViewFromHash() {
+  const view = window.location.hash.replace(/^#/, "");
+  return viewCopy[view] ? view : null;
 }
 
 function renderNav() {
@@ -718,6 +734,8 @@ function updateSectionTreeToggle() {
 
 function populateAISettingsForm() {
   const settings = state.aiSettings;
+  els.aiSettingsStatus.classList.remove("is-success");
+  els.aiSettingsStatus.textContent = "";
   els.aiProviderInput.value = settings.provider || DEFAULT_AI_SETTINGS.provider;
   els.aiBaseUrlInput.value = settings.baseUrl || DEFAULT_AI_SETTINGS.baseUrl;
   els.aiModelInput.value = settings.model || DEFAULT_AI_SETTINGS.model;
@@ -741,6 +759,7 @@ function saveAISettingsFromForm() {
   saveAISettings();
   els.aiApiKeyInput.value = "";
   els.aiKeyStatus.textContent = state.aiSettings.apiKey ? "已在本浏览器保存密钥" : "未保存密钥";
+  els.aiSettingsStatus.classList.add("is-success");
   els.aiSettingsStatus.textContent = "AI 设置已保存到本地浏览器。";
 }
 
