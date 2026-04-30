@@ -36,13 +36,10 @@
             <h1 id="viewTitle">总览</h1>
             <p id="viewSubtitle">读取现有题库和教材，直接在浏览器学习。</p>
           </div>
-          <div class="topbar-actions">
-            <label class="search-box">
-              <span>搜索</span>
-              <input id="globalSearch" type="search" placeholder="题目、章节、关键词" autocomplete="off" />
-            </label>
-            <button id="aiSettingsButton" class="secondary-button topbar-button" type="button">AI 设置</button>
-          </div>
+          <label class="search-box">
+            <span>搜索</span>
+            <input id="globalSearch" type="search" placeholder="题目、章节、关键词" autocomplete="off" />
+          </label>
         </header>
 
         <section id="dashboardView" class="view is-active" aria-labelledby="viewTitle">
@@ -122,6 +119,13 @@
               <p>只收录本机答错过的题目，可一键回到原题。</p>
             </div>
             <div id="wrongList" class="wrong-list"></div>
+          </section>
+          <section class="panel ai-settings-card">
+            <div>
+              <h2>AI 设置</h2>
+              <p>配置 DeepSeek 或兼容模型，用于生成错题和题目讲解。设置只保存在当前浏览器。</p>
+            </div>
+            <button id="aiSettingsButton" class="primary-button" type="button">打开 AI 设置</button>
           </section>
         </section>
 

@@ -446,7 +446,7 @@ async function explainQuestionWithAI(set, question) {
   if (!settings.apiKey) {
     panel.innerHTML = `
       <h3>需要先设置 API Key</h3>
-      <p>点击右上角“AI 设置”，填写 DeepSeek 或兼容服务商的 API Key。密钥只保存在当前浏览器。</p>
+      <p>进入“错题”页，点击“打开 AI 设置”，填写 DeepSeek 或兼容服务商的 API Key。密钥只保存在当前浏览器。</p>
     `;
     openAISettings();
     return;

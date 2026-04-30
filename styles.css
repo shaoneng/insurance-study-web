@@ -175,12 +175,6 @@ strong {
   margin-bottom: 22px;
 }
 
-.topbar-actions {
-  display: flex;
-  align-items: end;
-  gap: 10px;
-}
-
 .topbar h1 {
   margin: 0;
   font-size: clamp(26px, 4vw, 40px);
@@ -200,10 +194,6 @@ strong {
   color: var(--muted);
   font-size: 13px;
   font-weight: 700;
-}
-
-.topbar-button {
-  min-height: 42px;
 }
 
 .search-box input,
@@ -324,6 +314,26 @@ select {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fbfdfb;
+}
+
+.ai-settings-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.ai-settings-card h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.ai-settings-card p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 .deck-row h3,
@@ -844,17 +854,6 @@ mark {
     backdrop-filter: blur(12px);
   }
 
-  .topbar-actions {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: end;
-  }
-
-  .topbar-button {
-    min-width: 76px;
-    padding: 0 10px;
-  }
-
   .topbar h1 {
     font-size: 23px;
   }
@@ -932,7 +931,8 @@ mark {
 
   .deck-row,
   .wrong-row,
-  .search-row {
+  .search-row,
+  .ai-settings-card {
     align-items: stretch;
     flex-direction: column;
     gap: 10px;
@@ -942,7 +942,8 @@ mark {
   .deck-row .primary-button,
   .wrong-row .primary-button,
   .search-row .primary-button,
-  .search-row .secondary-button {
+  .search-row .secondary-button,
+  .ai-settings-card .primary-button {
     width: 100%;
   }
 
